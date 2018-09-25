@@ -15,7 +15,6 @@ before_script:
   - ./cc-test-reporter before-build
 script:
   - pytest
-  - coverage erase
   - coverage run -m pytest
   - coverage xml
 after_script:

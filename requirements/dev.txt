@@ -4,6 +4,7 @@ astor==0.7.1
 atomicwrites==1.2.1
 attrs==18.2.0
 click==6.7
+coverage==4.5.1
 Flask==1.0.2
 flask-restplus==0.11.0
 gast==0.2.0
@@ -25,6 +26,7 @@ pluggy==0.7.1
 protobuf==3.6.1
 py==1.6.0
 pytest==3.8.1
+pytest-cov==2.6.0
 pytz==2018.5
 PyYAML==3.13
 scipy==1.1.0

@@ -42,11 +42,11 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def prepare_data_array(file, height=150, width=150, num_channels=3, resampling=Image.ANTIALIAS):
+def prepare_data_array(file, height=150, width=150, num_channels=3):
     image = Image.open(file)
     if num_channels == 3 and image.mode != "RGB":
         image = image.convert('RGB')
-    image = image.resize((width, height), resampling)
+    image = image.resize((width, height))
     img_arr = img_to_array(image)
     img_arr = img_arr.reshape((1,) + img_arr.shape)
     img_arr = 1 / 255.0 * img_arr
@@ -57,6 +57,59 @@ def prepare_data_array(file, height=150, width=150, num_channels=3, resampling=I
 def welcome():
     return render_template('index.html')
 
+def handle_multipart_form(request, verbose):
+
+    responses = []
+
+    for file in request.files.getlist("images"):
+        with graph.as_default():
+            try:
+
+                if not allowed_file(file.filename):
+                    raise NotImplementedError
+
+                if verbose:
+                    filehash = hashfunc(file.read()).hexdigest()
+
+                # Get the input dimensions from the model
+                # w, h, c = (d.value for d in model.inputs[0].shape[1:])
+                # Or assume input dimensions are fixed
+                w, h, c = 150, 150, 3
+
+                x = prepare_data_array(file=file,
+                                       width=w,
+                                       height=h,
+                                       num_channels=c,
+                                       )
+
+                predictions = model.predict(x=x, verbose=0)
+                p = float(predictions[0][0])
+                if verbose:
+                    p_str = 'Dog' if p > 0.5 else 'Cat'
+                    responses += [
+                        {'hash': filehash,
+                         'hash_func': hashfunc.name,
+                         'filename': file.filename,
+                         'value': p,
+                         'result': p_str
+                         }
+                    ]
+                else:
+                    responses += [p]
+            except NotImplementedError as err:
+                if verbose:
+                    responses += [
+                        {'hash': None,
+                         'hash_func': None,
+                         'filename': file.filename,
+                         'value': None,
+                         'result': 'Fail %s' % err
+                         }
+                    ]
+                else:
+                    responses += [p]
+    return responses
+
 
 @app.route("/api/v1.0.0/identify/", methods=["GET", "POST"])
 def run():
@@ -65,56 +118,7 @@ def run():
     responses = []
 
     if 'multipart/form-data' in request.headers['Content-Type']:
-
-        if request.method == "POST":
-
-            for file in request.files.getlist("images"):
-                with graph.as_default():
-                    try:
-
-                        if not allowed_file(file.filename):
-                            raise NotImplementedError
-
-                        if verbose:
-                            filehash = hashfunc(file.read()).hexdigest()
-
-                        # Get the input dimensions from the model
-                        # w, h, c = (d.value for d in model.inputs[0].shape[1:])
-                        # Or assume input dimensions are fixed
-                        w, h, c = 150, 150, 3
-
-                        x = prepare_data_array(file=file,
-                                               width=w,
-                                               height=h,
-                                               num_channels=c,
-                                               )
-
-                        predictions = model.predict(x=x, verbose=0)
-                        p = float(predictions[0][0])
-                        if verbose:
-                            p_str = 'Dog' if p > 0.5 else 'Cat'
-                            responses += [
-                                {'hash': filehash,
-                                 'hash_func': hashfunc.name,
-                                 'filename': file.filename,
-                                 'value': p,
-                                 'result': p_str
-                                 }
-                            ]
-                        else:
-                            responses += [p]
-                    except NotImplementedError as err:
-                        if verbose:
-                            responses += [
-                                {'hash': None,
-                                 'hash_func': None,
-                                 'filename': file.filename,
-                                 'value': None,
-                                 'result': 'Fail %s' % err
-                                 }
-                            ]
-                        else:
-                            responses += [p]
+        responses += handle_multipart_form(request, verbose)
 
     elif request.headers['Content-Type'] == 'text/plain':
         return jsonify(responses)

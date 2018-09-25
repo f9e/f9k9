@@ -17,8 +17,8 @@ script:
   - pytest
   - coverage erase
   - coverage run -m pytest
-  - coverage xml
+  - coverage xml -o /tmp/coverage.xml
 after_script:
-  - ./cc-test-reporter format-coverage --coverage-input-type covearge.py < ./coverage.xml
+  - ./cc-test-reporter format-coverage --coverage-input-type covearge.py < /tmp/coverage.xml
   - ./cc-test-reporter upload-coverage --id $CC_TEST_REPORTER_ID
   - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT

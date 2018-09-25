@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<form action="/api/v1.0.0/cat-dog/" method="POST" enctype="multipart/form-data">
+      <span class="btn btn-default btn-file">
+        Browse <input type="file" name="images" multiple>
+      </span>
+    <span>
+    <input type="checkbox" name="verbose" value="True" checked="checked"/><br>
+    <label for="verbose">Verbose</label>
+
+    </span>
+    <span>
+    <input type="submit" value="Upload your image(s)" class="btn btn-primary"/>
+</span>
+
+
+</form>
+<img src="static/dog.jpg"/>
+</body>
+</html>

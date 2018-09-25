@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, jsonify
-# from flask_restplus import Api, Resource, fields
+from flask_restplus import Api, Resource, fields
 from keras.preprocessing.image import img_to_array
 from keras.models import load_model
 from tensorflow import get_default_graph
@@ -8,19 +8,14 @@ from hashlib import md5 as hashfunc
 
 app = Flask(__name__)
 
-'''api = Api(app,
+api = Api(app,
           version='1.0.1',
           title='Little Cat Dog',
           description='Rest API for binary image classifier',
           )
 
-ns = api.namespace('identify', description='Enpoint to identify images')
+ns = api.namespace('identify', description='Endpoint to identify images')
 
-todo = api.model('identify', {
-    'id': fields.Integer(readOnly=True, description='The task unique identifier'),
-    'task': fields.String(required=True, description='The task details')
-})
-'''
 
 ALLOWED_EXTENSIONS = set(['bmp',
                           'gif',
@@ -28,6 +23,10 @@ ALLOWED_EXTENSIONS = set(['bmp',
                           'jpg', 'jpeg',
                           'psd', 'png',
                           'tif'])
+
+
+def human_text_func(p):
+    return 'Dog' if p > 0.5 else 'Cat'
 
 
 def init():
@@ -57,24 +56,50 @@ def prepare_data_array(file, height=150, width=150, num_channels=3):
 def welcome():
     return render_template('index.html')
 
-def handle_multipart_form(request, verbose):
 
+def build_response(p, file, verbose):
+    p_str = human_text_func(p)
+    if verbose:
+        filehash = hashfunc(file.read()).hexdigest()
+        return [
+            {'hash': filehash,
+             'hash_func': hashfunc.name,
+             'filename': file.filename,
+             'value': p,
+             'result': p_str
+             }
+        ]
+    else:
+        return [p_str]
+
+
+def build_response_error(err, file, verbose):
+
+    if verbose:
+        file_hash = hashfunc(file.read()).hexdigest()
+        return [
+            {'hash': file_hash,
+             'hash_func': hashfunc.name,
+             'filename': file.filename,
+             'value': None,
+             'result': 'Error %s' % err
+             }
+        ]
+    else:
+        return ["Error"]
+
+
+def handle_multipart_form(request, verbose):
     responses = []
 
     for file in request.files.getlist("images"):
         with graph.as_default():
             try:
-
                 if not allowed_file(file.filename):
                     raise NotImplementedError
 
-                if verbose:
-                    filehash = hashfunc(file.read()).hexdigest()
-
                 # Get the input dimensions from the model
-                # w, h, c = (d.value for d in model.inputs[0].shape[1:])
-                # Or assume input dimensions are fixed
-                w, h, c = 150, 150, 3
+                w, h, c = (d.value for d in model.inputs[0].shape[1:])
 
                 x = prepare_data_array(file=file,
                                        width=w,
@@ -84,36 +109,21 @@ def handle_multipart_form(request, verbose):
 
                 predictions = model.predict(x=x, verbose=0)
                 p = float(predictions[0][0])
-                if verbose:
-                    p_str = 'Dog' if p > 0.5 else 'Cat'
-                    responses += [
-                        {'hash': filehash,
-                         'hash_func': hashfunc.name,
-                         'filename': file.filename,
-                         'value': p,
-                         'result': p_str
-                         }
-                    ]
-                else:
-                    responses += [p]
+
+                responses += build_response(p=p,
+                                            file=file,
+                                            verbose=verbose)
+
             except NotImplementedError as err:
-                if verbose:
-                    responses += [
-                        {'hash': None,
-                         'hash_func': None,
-                         'filename': file.filename,
-                         'value': None,
-                         'result': 'Fail %s' % err
-                         }
-                    ]
-                else:
-                    responses += [p]
+                responses += build_response_error(err=err,
+                                                  file=file,
+                                                  verbose=verbose)
+
     return responses
 
 
 @app.route("/api/v1.0.0/identify/", methods=["GET", "POST"])
 def run():
-
     verbose = True if 'verbose' in request.form else False
     responses = []
 

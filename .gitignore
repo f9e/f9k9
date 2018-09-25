@@ -20,6 +20,8 @@ Icon
 __pycache__/
 *.py[cod]
 .mypy_cache/
+.venv/
+venv/
 
 # C extensions
 *.so

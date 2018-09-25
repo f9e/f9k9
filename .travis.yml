@@ -1,4 +1,7 @@
 sudo: false
+env:
+  global:
+    - CC_TEST_REPORTER_ID=8ab108231a9a857b674525eeaf9a89e0d224f78efa3c8429f1e3cf342e5065bc
 language: python
 python:
   - 3.5
@@ -7,6 +10,10 @@ install: pip install -r requirements/dev.txt
 before_script:
   - export FLASK_APP="$TRAVIS_BUILD_DIR/autoapp.py"
   - export FLASK_DEBUG=1
-
+  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+  - chmod +x ./cc-test-reporter
+  - ./cc-test-reporter before-build
 script:
   - pytest
+after_script:
+  - ./cc-test-reporter after-build --exit-code $TRAVIS_TEST_RESULT

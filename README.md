@@ -26,10 +26,9 @@ Configure a virtual environment in the project directory:
 virtualenv -p python3 venv;
 source venv/bin/activate;
 pip install -r requirements/dev.txt
-
 ```
 
-Using the app
+Using the app from the command line
 
 ```json
 flask app   # run a local daemon on port 5000

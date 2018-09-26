@@ -68,10 +68,7 @@ def prepare_data_array(file, height=150, width=150, num_channels=3):
 
 
 def get_verbosity(request):
-    verbose_passed = (request.args.get('verbose')) or ('verbose' in request.form)
-    if not verbose_passed:
-        return False
-    elif request.args.get('verbose') == 'true':
+    if request.args.get('verbose') == 'true':
         return True
     elif 'verbose' in request.form and request.form['verbose'] == 'true':
         return True
@@ -80,16 +77,17 @@ def get_verbosity(request):
 
 
 def build_response_object(p, file, verbose, is_error=False):
-    if is_error:
-        result = 'Error '
-        if verbose:
-            result += p
-        value = None
-    else:
-        result = human_text_func(p)
-        value = p
 
-    if verbose:
+    if is_error:
+        value, result = p, 'Error'
+        if verbose:
+            result += ' ' + p
+    else:
+        value, result = p, human_text_func(p)
+
+    if not verbose:
+        return [result]
+    else:
         try:
             file_hash = hashfunc(file.read()).hexdigest()
         except:
@@ -109,8 +107,7 @@ def build_response_object(p, file, verbose, is_error=False):
              'is_error': 'Error' in result
              }
         ]
-    else:
-        return [result]
+
 
 
 def handle_urls(urls, verbose):
@@ -181,27 +178,29 @@ def handle_files(files, verbose):
 
 
 def get_status_code(responses, verbose):
+
     has_errors, has_success = False, False
     if verbose:
         if any(x['is_error'] for x in responses):
             has_errors = True
         if any(not x['is_error'] for x in responses):
             has_success = True
-
     else:
         if "Error" in responses:
             has_errors = True
         if CLASSIFIER_TRUE in responses or CLASSIFIER_FALSE in responses:
             has_success = True
 
-    if has_success and not has_errors:
-        return 200
-    if has_errors and not has_success:
-        return 400
-    if has_errors and has_success:
-        return 207
-    if not has_success and not has_errors:
-        return 204
+    if has_success:
+        if has_errors:
+            return 207  # Mixed
+        else:
+            return 200  # Success
+    else:
+        if has_errors:
+            return 400  # Error
+        else:
+            return 204  # No Content
 
 
 @app.route('/')
@@ -221,7 +220,7 @@ def run_list():
             files = request.files.getlist("images")
             responses += handle_files(files, verbose)
 
-    # Download images urls or url and process them
+    # Download image urls or url and process them
     urls = []
     if 'url' in request.form.keys():
         urls += request.form.getlist('url')
@@ -231,7 +230,7 @@ def run_list():
     if urls:
         responses += handle_urls(urls, verbose)
 
-    # No content type, hail-mary assume image file was posted
+    # No content type, hail-mary assume image file was put
     if 'Content-Type' not in request.headers.keys():
         with SpooledTemporaryFile(max_size=250e3) as tmp:
             tmp.write(request.get_data())

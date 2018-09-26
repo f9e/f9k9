@@ -9,21 +9,21 @@ import os, json
 import requests as external
 from tempfile import SpooledTemporaryFile
 
-CLASSIFIER_MODEL = os.environ.get("CLASSIFIER_MODEL",
-                                  default='./storage/ecdf7924eb6ba16cf1a8cdd4307e7d2f.hdf5')
-CLASSIFIER_TRUE = os.environ.get("CLASSIFIER_TRUE", default='Dog')
-CLASSIFIER_FALSE = os.environ.get("CLASSIFIER_FALSE", default='Cat')
-CLASSIFIER_THRESH = os.environ.get("CLASSIFIER_THRESH", default=0.5)
+APP_MODEL = os.environ.get("APP_MODEL",
+                           default='./storage/ecdf7924eb6ba16cf1a8cdd4307e7d2f.hdf5')
+APP_TRUE = os.environ.get("APP_TRUE", default='Dog')
+APP_FALSE = os.environ.get("APP_FALSE", default='Cat')
+APP_THRESH = os.environ.get("APP_THRESH", default=0.5)
 
 # TODO default to false
 # Controls whether API will get images from the internet on the fly
 
-ALLOW_PROXY = os.environ.get("ALLOW_PROXY", default=True)
+APP_PROXY = os.environ.get("APP_PROXY", default=False)
 
 global model, graph
 
 # load the pre-trained Keras model
-model = load_model(CLASSIFIER_MODEL)
+model = load_model(APP_MODEL)
 graph = get_default_graph()
 
 app = Flask(__name__)
@@ -36,19 +36,21 @@ api = Api(app,
 
 ns = api.namespace('identify', description='Endpoint to identify images')
 
-ALLOWED_EXTENSIONS = set(['bmp', 'gif', 'ico', 'jpg', 'jpeg', 'psd', 'png', 'tif'])
+ALLOWED_EXTENSIONS = set(['bmp', 'gif', 'ico',
+                          'jpg', 'jpeg',
+                          'png', 'tif'])
 
 
 def init():
     global model, graph
 
     # load the pre-trained Keras model
-    model = load_model(CLASSIFIER_MODEL)
+    model = load_model(APP_MODEL)
     graph = get_default_graph()
 
 
 def human_text_func(p):
-    return CLASSIFIER_TRUE if p > CLASSIFIER_THRESH else CLASSIFIER_FALSE
+    return APP_TRUE if p > APP_THRESH else APP_FALSE
 
 
 def allowed_file(filename):
@@ -77,7 +79,6 @@ def get_verbosity(request):
 
 
 def build_response_object(p, file, verbose, is_error=False):
-
     if is_error:
         value, result = p, 'Error'
         if verbose:
@@ -109,18 +110,17 @@ def build_response_object(p, file, verbose, is_error=False):
         ]
 
 
-
 def handle_urls(urls, verbose):
     responses = []
 
     # Make sure downloading via proxy is enabled.
-    if ALLOW_PROXY:
+
+    if APP_PROXY:
         images = []
         for url in urls:
             r = external.get(url)
             if r.status_code == 200:
                 with SpooledTemporaryFile(max_size=250e3) as tmp:
-                    print('here')
                     tmp.write(r.content)
                     tmp.filename = url
                     responses += handle_files(files=[tmp],
@@ -129,7 +129,8 @@ def handle_urls(urls, verbose):
             else:
                 file = SpooledTemporaryFile(max_size=10)
                 file.filename = url
-                responses += build_response_object(p="- Downloading : {}".format(r.status_code),
+                message = " - Downloading : {}".format(r.status_code)
+                responses += build_response_object(p=message,
                                                    file=file,
                                                    verbose=verbose,
                                                    is_error=True)
@@ -178,8 +179,8 @@ def handle_files(files, verbose):
 
 
 def get_status_code(responses, verbose):
+    has_errors, has_success = None, None
 
-    has_errors, has_success = False, False
     if verbose:
         if any(x['is_error'] for x in responses):
             has_errors = True
@@ -188,7 +189,7 @@ def get_status_code(responses, verbose):
     else:
         if "Error" in responses:
             has_errors = True
-        if CLASSIFIER_TRUE in responses or CLASSIFIER_FALSE in responses:
+        if APP_TRUE in responses or APP_FALSE in responses:
             has_success = True
 
     if has_success:
@@ -210,10 +211,10 @@ def welcome():
 
 @app.route("/api/v1.0.0/identify/", methods=["GET", "POST", "PUT"])
 def run_list():
+    responses = []
+
     # get if verbosity was true from either data or params
     verbose = get_verbosity(request)
-
-    responses = []
 
     if 'Content-Type' in request.headers.keys():
         if 'multipart/form-data' in request.headers['Content-Type']:
@@ -238,7 +239,9 @@ def run_list():
 
     status_code = get_status_code(responses, verbose)
 
-    return Response(json.dumps(responses), status=status_code, mimetype='application/json')
+    return Response(json.dumps(responses),
+                    status=status_code,
+                    mimetype='application/json')
 
 
 @app.route("/api/v1.0.0/identify/<filename>", methods=["PUT"])
@@ -254,7 +257,9 @@ def run_singleton(filename):
 
     status_code = get_status_code(responses, verbose)
 
-    return Response(json.dumps(responses), status=status_code, mimetype='application/json')
+    return Response(json.dumps(responses),
+                    status=status_code,
+                    mimetype='application/json')
 
 
 if __name__ == '__main__':

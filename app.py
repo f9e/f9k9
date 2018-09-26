@@ -152,7 +152,6 @@ def handle_files(files, verbose):
     for file in files:
         with graph.as_default():
             try:
-
                 # Get the input dimensions from the model
                 w, h, c = (d.value for d in model.inputs[0].shape[1:])
 
@@ -178,7 +177,7 @@ def handle_files(files, verbose):
     return responses
 
 
-def get_status_code(responses, verbose):
+def get_errors_and_successes(responses, verbose):
     has_errors, has_success = None, None
 
     if verbose:
@@ -191,6 +190,10 @@ def get_status_code(responses, verbose):
             has_errors = True
         if APP_TRUE in responses or APP_FALSE in responses:
             has_success = True
+
+
+def get_status_code(responses, verbose):
+    has_errors, has_success = get_errors_and_successes(responses, verbose)
 
     if has_success:
         if has_errors:

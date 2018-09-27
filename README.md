@@ -64,7 +64,9 @@ export APP_SETTINGS="config.DevConfig"
 ```
 
 
-## Deployment with docker
+## Deployment 
+
+### with docker
 
 Build the docker image
 
@@ -201,8 +203,6 @@ returns
 
 #### Proxy usage
 
-> This setting is disabled by default
-
 If the client has no local storage and the `ALLOW_PROXY` setting is `True`, the app will
  download and analyze image urls passed individually into the `url` parameter or as an 
  array into the `urls` parameter.   
@@ -332,6 +332,13 @@ returns:
 
 * Zappa deployment with s3 model storage
 * Caching 
-* Generalize from binary to a list of categories.
+* Generalize settings to handle a list of categories.
 * Vector input (svg, pdf)
 * Video input (mp4, avi)
+
+## Proposal
+
+* Remove all batching functionality
+* Convert to OO design
+* Split into two services: 1) a robust array preparation service 
+and 2) a highly optimized processing service

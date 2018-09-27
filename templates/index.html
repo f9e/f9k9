@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Title</title>
+    <link type="text/css" rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" type="text/css">
 </head>
 <body>
 <form action="/api/v1.0.0/identify/" method="POST" enctype="multipart/form-data">
@@ -20,6 +21,6 @@
 
 
 </form>
-<img src="static/dog.jpg"/>
+
 </body>
 </html>

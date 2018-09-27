@@ -17,7 +17,7 @@ APP_THRESH = os.environ.get("APP_THRESH", default=0.5)
 # TODO default to false
 # Controls whether API will get images from the internet on the fly
 
-APP_PROXY = os.environ.get("APP_PROXY", default=False)
+APP_PROXY = os.environ.get("APP_PROXY", default=True)
 
 global model, graph
 
@@ -67,6 +67,7 @@ def run_list():
 
     # Download image urls or url and process them
     urls = get_urls(request)
+    print(urls)
     if urls:
         responses += handle_urls(urls, verbose)
 
@@ -86,7 +87,6 @@ def run_list():
 @app.route("/api/v1.0.0/identify/<filename>", methods=["PUT", "POST"])
 def run_singleton(filename):
     verbose = get_verbosity(request)
-    print("verbose was {}".format(verbose))
     responses = []
 
     with SpooledTemporaryFile(max_size=250e3) as tmp:
@@ -119,6 +119,7 @@ def build_response_object(p, file, verbose, is_error=False):
     if is_error:
         value, result = None, 'Error'
         if verbose:
+            print(p)
             # TODO return better error message
             result += ' '.format(p)
     else:

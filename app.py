@@ -1,5 +1,4 @@
 from flask import Flask, request, render_template, jsonify, Response
-from flask_restplus import Api, Resource, fields
 from keras.preprocessing.image import img_to_array
 from keras.models import load_model
 from tensorflow import get_default_graph
@@ -28,13 +27,13 @@ graph = get_default_graph()
 
 app = Flask(__name__)
 
-api = Api(app,
-          version='1.0.1',
-          title='f9k9 - Feline Canine',
-          description='Rest API for a general purpose binary image classifier',
-          )
+# api = Api(app,
+#          version='1.0.1',
+#          title='f9k9 - Feline Canine',
+#          description='Rest API for a general purpose binary image classifier',
+#          )
 
-ns = api.namespace('identify', description='Endpoint to identify images')
+# ns = api.namespace('identify', description='Endpoint to identify images')
 
 ALLOWED_EXTENSIONS = set(['bmp', 'gif', 'ico',
                           'jpg', 'jpeg',
@@ -68,7 +67,6 @@ def run_list():
 
     # Download image urls or url and process them
     urls = get_urls(request)
-    print(urls)
     if urls:
         responses += handle_urls(urls, verbose)
 
@@ -119,9 +117,10 @@ def prepare_data_array(file, height=150, width=150, num_channels=3):
 def build_response_object(p, file, verbose, is_error=False):
     """Build a response object"""
     if is_error:
-        value, result = p, 'Error'
+        value, result = None, 'Error'
         if verbose:
-            result += ' ' + str(p)
+            # TODO return better error message
+            result += ' '.format(p)
     else:
         value, result = p, human_text_func(p)
 
@@ -246,7 +245,7 @@ def get_status_code(responses, verbose):
     has_errors, has_success = get_errors_and_successes(responses, verbose)
 
     code_map = {
-        True: {  # has_success
+        True: {  # has success
             True: 207,  # with failures
             False: 200  # sans failures
         },
@@ -287,10 +286,10 @@ def get_urls(request):
 
 def get_verbosity(request):
     """Get verbose param, if pass in form or as parameter"""
-    if request.args.get('verbose') == 'true':
-        return True
-    elif 'verbose' in request.form and request.form['verbose'] == 'true':
-        return True
+    if request.args.get('verbose'):
+        return request.args.get('verbose').lower() == 'true'
+    elif 'verbose' in request.form:
+        return request.form['verbose'].lower() == 'true'
     else:
         return False
 

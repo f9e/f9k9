@@ -45,14 +45,24 @@ pytest
 
 ## Configuration
 
-There are `tk` two sample configurations in the `config` folder.  
+There are sample configurations in the `config.py` .  
 
-* `CLASSIFIER_MODEL` location of Keras model hdf5 
-* `CLASSIFIER_TRUE` is a human readable true string  
-* `CLASSIFIER_FALSE` is the human readable false string 
-* `CLASSIFIER_THRESH` is the threshold of truth 
+* `APP_MODEL` location of Keras model hdf5 
+* `APP_TRUE` is a human readable true string  
+* `APP_FALSE` is the human readable false string 
+* `APP_THRESH` is the threshold of truth 
+* `APP_PROXY` enables downloading of images from external urls 
 
 If not provided, values default to the current example (i.e. 'Dog', 'Cat', 0.5)
+
+Several configurations are provided in `config.py`, they can be activated prior to starting the app
+by setting the `APP_SETTINGS` environment variable to the desired setting class. 
+ 
+
+```
+export APP_SETTINGS="config.DevConfig"
+```
+
 
 ## Deployment with docker
 
@@ -69,6 +79,80 @@ docker run -d -p 5000:5000 f9k9
 ```
 
 ## Usage
+
+### Example Python Usage
+
+Below are examples written with the `requests` library of python.
+
+#### put a single image,
+
+```python
+import requests, json
+
+url = "http://localhost:5000/api/v1.0.0/identify/"
+image = open('./static/cat_1.jpg', 'r+b')
+r = requests.put(url=url,data=image)
+'Status: {}'.format(r.status_code)
+r.content
+
+```
+
+returns
+
+```python
+Status: 200
+b'["Dog"]'
+```
+
+#### post a single image verbosely,
+
+```python
+import requests, json
+
+url = "http://localhost:5000/api/v1.0.0/identify/"
+filename = './static/cat_3.jpeg'
+image = [('images', (filename, open(filename, 'r+b')))]
+r = requests.post(url=url,params={'verbose':'true'},files=image)
+'Status: {}'.format(r.status_code)
+json_data = r.content.decode('utf-8')
+print(json_data)
+```
+
+returns
+
+```json
+[
+  {
+    "is_error": false,
+    "value": 0.43634799122810364,
+    "filename": "./static/cat_3.jpeg",
+    "hash_func": "openssl_md5",
+    "result": "Cat",
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  }
+]
+
+```
+
+#### Post a directory
+
+```python
+from glob import glob
+import requests
+
+endpoint_url = "http://localhost:5000/api/v1.0.0/identify/"
+
+filenames = glob('./static/*')
+files = []
+for filename in filenames:
+    files += [('images', (filename, open(filename, 'r+b')))]
+
+r = requests.post(url=endpoint_url, files=files, )
+print("{}".format(r.status_code))
+
+for f in files:
+    f[1][1].close()
+```
 
 ### Example Curl Usage
 
@@ -129,9 +213,9 @@ If the client has no local storage and the `ALLOW_PROXY` setting is `True`, the 
 curl -d 'verbose=true' \
      -d 'url=https://ipfs.io/ipfs/QImAnInvalidHashhhhhhhh/cat.jpg'  \
      -d 'url=https://ipfs.io/ipfs/QmW2WQi7j6c7UgJTarActp7tDNikE4B2qXtFCfLPdsgaTQ/cat.jpg' \
-     -d 'urls[]=https://upload.wikimedia.org/wikipedia/commons/b/b9/CyprusShorthair.jpg' \
-     -d 'urls[]=https://upload.wikimedia.org/wikipedia/commons/4/4d/Cat_November_2010-1a.jpg' \
-     -d 'urls[]=https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/June_odd-eyed-cat.jpg/1260px-June_odd-eyed-cat.jpg' \
+     -d 'urls=https://upload.wikimedia.org/wikipedia/commons/b/b9/CyprusShorthair.jpg' \
+     -d 'urls=https://upload.wikimedia.org/wikipedia/commons/4/4d/Cat_November_2010-1a.jpg' \
+     -d 'urls=https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/June_odd-eyed-cat.jpg/1260px-June_odd-eyed-cat.jpg' \
      http://localhost:5000/api/v1.0.0/identify/
 ```
 Which returns:
@@ -246,6 +330,7 @@ returns:
 
 ## Todo
 
+* Zappa deployment with s3 model storage
 * Caching 
 * Generalize from binary to a list of categories.
 * Vector input (svg, pdf)

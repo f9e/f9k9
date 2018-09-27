@@ -49,16 +49,63 @@ def init():
     graph = get_default_graph()
 
 
-def human_text_func(p):
-    return APP_TRUE if p > APP_THRESH else APP_FALSE
+@app.route('/')
+def welcome():
+    return render_template('index.html')
 
 
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@app.route("/api/v1.0.0/identify/", methods=["GET", "POST", "PUT"])
+def run_list():
+    responses = []
+
+    # get if verbosity was true from either data or params
+    verbose = get_verbosity(request)
+
+    if 'Content-Type' in request.headers.keys():
+        if 'multipart/form-data' in request.headers['Content-Type']:
+            files = request.files.getlist("images")
+            responses += handle_files(files, verbose)
+
+    # Download image urls or url and process them
+    urls = get_urls(request)
+    print(urls)
+    if urls:
+        responses += handle_urls(urls, verbose)
+
+    # No content type, hail-mary assume image file was put
+    if 'Content-Type' not in request.headers.keys():
+        with SpooledTemporaryFile(max_size=250e3) as tmp:
+            tmp.write(request.get_data())
+            responses += handle_files([tmp], verbose)
+
+    status_code = get_status_code(responses, verbose)
+
+    return Response(json.dumps(responses),
+                    status=status_code,
+                    mimetype='application/json')
+
+
+@app.route("/api/v1.0.0/identify/<filename>", methods=["PUT", "POST"])
+def run_singleton(filename):
+    verbose = get_verbosity(request)
+    print("verbose was {}".format(verbose))
+    responses = []
+
+    with SpooledTemporaryFile(max_size=250e3) as tmp:
+        tmp.write(request.get_data())
+        if filename:
+            tmp.filename = filename
+        responses += handle_files([tmp], verbose)
+
+    status_code = get_status_code(responses, verbose)
+
+    return Response(json.dumps(responses),
+                    status=status_code,
+                    mimetype='application/json')
 
 
 def prepare_data_array(file, height=150, width=150, num_channels=3):
+    """Marshal a file to a normalized 3d-array"""
     image = Image.open(file)
     if num_channels == 3 and image.mode != "RGB":
         image = image.convert('RGB')
@@ -69,20 +116,12 @@ def prepare_data_array(file, height=150, width=150, num_channels=3):
     return img_arr
 
 
-def get_verbosity(request):
-    if request.args.get('verbose') == 'true':
-        return True
-    elif 'verbose' in request.form and request.form['verbose'] == 'true':
-        return True
-    else:
-        return False
-
-
 def build_response_object(p, file, verbose, is_error=False):
+    """Build a response object"""
     if is_error:
         value, result = p, 'Error'
         if verbose:
-            result += ' ' + p
+            result += ' ' + str(p)
     else:
         value, result = p, human_text_func(p)
 
@@ -111,6 +150,7 @@ def build_response_object(p, file, verbose, is_error=False):
 
 
 def handle_urls(urls, verbose):
+    """Returns the model evaluation for a list of urls"""
     responses = []
 
     # Make sure downloading via proxy is enabled.
@@ -147,6 +187,7 @@ def handle_urls(urls, verbose):
 
 
 def handle_files(files, verbose):
+    """Returns the model evaluation for a list of files"""
     responses = []
 
     for file in files:
@@ -174,10 +215,16 @@ def handle_files(files, verbose):
                                                    file=file,
                                                    verbose=verbose,
                                                    is_error=True)
+            except OSError as err:
+                responses += build_response_object(p=err,
+                                                   file=file,
+                                                   verbose=verbose,
+                                                   is_error=True)
     return responses
 
 
 def get_errors_and_successes(responses, verbose):
+    """Convenience function to determine state"""
     has_errors, has_success = None, None
 
     if verbose:
@@ -191,8 +238,11 @@ def get_errors_and_successes(responses, verbose):
         if APP_TRUE in responses or APP_FALSE in responses:
             has_success = True
 
+    return has_errors, has_success
+
 
 def get_status_code(responses, verbose):
+    """Convenience function to return status codes"""
     has_errors, has_success = get_errors_and_successes(responses, verbose)
 
     if has_success:
@@ -207,62 +257,40 @@ def get_status_code(responses, verbose):
             return 204  # No Content
 
 
-@app.route('/')
-def welcome():
-    return render_template('index.html')
+def human_text_func(p):
+    """Evalue the app boolean to a human readable value"""
+    return APP_TRUE if p > APP_THRESH else APP_FALSE
 
 
-@app.route("/api/v1.0.0/identify/", methods=["GET", "POST", "PUT"])
-def run_list():
-    responses = []
+def allowed_file(filename):
+    """Check if filename is supported"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-    # get if verbosity was true from either data or params
-    verbose = get_verbosity(request)
 
-    if 'Content-Type' in request.headers.keys():
-        if 'multipart/form-data' in request.headers['Content-Type']:
-            files = request.files.getlist("images")
-            responses += handle_files(files, verbose)
-
-    # Download image urls or url and process them
+def get_urls(request):
+    """Build list of urls, if pass in form or as parameter"""
     urls = []
+
+    if request.args.get('url'):
+        urls += [request.args.getlist('url')]
+    if request.args.get('urls'):
+        urls += [request.args.getlist('urls')]
     if 'url' in request.form.keys():
         urls += request.form.getlist('url')
-    if 'urls[]' in request.form.keys():
-        urls += request.form.getlist('urls[]')
-
-    if urls:
-        responses += handle_urls(urls, verbose)
-
-    # No content type, hail-mary assume image file was put
-    if 'Content-Type' not in request.headers.keys():
-        with SpooledTemporaryFile(max_size=250e3) as tmp:
-            tmp.write(request.get_data())
-            responses += handle_files([tmp], verbose)
-
-    status_code = get_status_code(responses, verbose)
-
-    return Response(json.dumps(responses),
-                    status=status_code,
-                    mimetype='application/json')
+    if 'urls' in request.form.keys():
+        urls += request.form.getlist('urls')
+    return urls
 
 
-@app.route("/api/v1.0.0/identify/<filename>", methods=["PUT"])
-def run_singleton(filename):
-    verbose = True if 'verbose' in request.form else False
-    responses = []
-
-    with SpooledTemporaryFile(max_size=250e3) as tmp:
-        tmp.write(request.get_data())
-        if filename:
-            tmp.filename = filename
-        responses += handle_files([tmp], verbose)
-
-    status_code = get_status_code(responses, verbose)
-
-    return Response(json.dumps(responses),
-                    status=status_code,
-                    mimetype='application/json')
+def get_verbosity(request):
+    """Get verbose param, if pass in form or as parameter"""
+    if request.args.get('verbose') == 'true':
+        return True
+    elif 'verbose' in request.form and request.form['verbose'] == 'true':
+        return True
+    else:
+        return False
 
 
 if __name__ == '__main__':

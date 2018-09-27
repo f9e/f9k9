@@ -8,9 +8,7 @@ import json
 from f9k9.app import app
 from f9k9.app import init
 
-
 class AppTestCase(unittest.TestCase):
-
     def setUp(self):
         init()
         app.config['TESTING'] = True
@@ -44,6 +42,7 @@ class AppTestCase(unittest.TestCase):
                     self.assertEqual(rv.ndim, 4)
                     self.assertLessEqual(rv.max(), 1.0)
                     self.assertEqual(rv.size, w * h * c)
+
 
 
 if __name__ == '__main__':

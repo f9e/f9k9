@@ -4,12 +4,12 @@ from keras.models import load_model
 from tensorflow import get_default_graph
 from PIL import Image
 from hashlib import md5 as hashfunc
-import os, json
+import os
+import json
 import requests as external
 from tempfile import SpooledTemporaryFile
 
-APP_MODEL = os.environ.get("APP_MODEL",
-                           default='./storage/ecdf7924eb6ba16cf1a8cdd4307e7d2f.hdf5')
+APP_MODEL = os.environ.get("APP_MODEL", default='./storage/ecdf7924eb6ba16cf1a8cdd4307e7d2f.hdf5')
 APP_TRUE = os.environ.get("APP_TRUE", default='Dog')
 APP_FALSE = os.environ.get("APP_FALSE", default='Cat')
 APP_THRESH = os.environ.get("APP_THRESH", default=0.5)
@@ -296,5 +296,5 @@ def get_verbosity(request):
 
 
 if __name__ == '__main__':
-    app.debug = True
-    app.run(host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0')
+

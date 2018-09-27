@@ -10,7 +10,7 @@ In addition to accepting a single image, it can also accept an array of
 images or any number of URLs that may be images.
 
 As such, it aims to tackle the core problem of the internet today, having too many 
-cat pictures or none.
+feline pictures or none.
 
 
 ## Installation 

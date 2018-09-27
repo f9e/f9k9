@@ -225,7 +225,7 @@ def handle_files(files, verbose):
 
 def get_errors_and_successes(responses, verbose):
     """Convenience function to determine state"""
-    has_errors, has_success = None, None
+    has_errors, has_success = False, False
 
     if verbose:
         if any(x['is_error'] for x in responses):
@@ -245,16 +245,18 @@ def get_status_code(responses, verbose):
     """Convenience function to return status codes"""
     has_errors, has_success = get_errors_and_successes(responses, verbose)
 
-    if has_success:
-        if has_errors:
-            return 207  # Mixed
-        else:
-            return 200  # Success
-    else:
-        if has_errors:
-            return 400  # Error
-        else:
-            return 204  # No Content
+    code_map = {
+        True: {  # has_success
+            True: 207,  # with failures
+            False: 200  # sans failures
+        },
+        False: {  # No Successes
+            True: 400,  # with failures
+            False: 204  # sans failures
+        }
+    }
+
+    return code_map[has_success][has_errors]
 
 
 def human_text_func(p):

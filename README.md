@@ -330,6 +330,8 @@ returns:
 
 ## Todo
 
+* Crop images centrally for evaluation
+* `tf.image.per_image_standardization` to make the model insensitive to dynamic range
 * Zappa deployment with s3 model storage
 * Caching 
 * Generalize settings to handle a list of categories.
